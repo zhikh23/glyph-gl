@@ -22,8 +22,9 @@ impl Matrix4 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::assert_matrix4_approx_eq;
     use crate::math::vectors::{UnitVector3, Vector3};
+    use crate::{assert_approx_eq, assert_matrix4_approx_eq};
+    use std::f32::consts::SQRT_2;
 
     #[test]
     fn test_view_matrix_identity_position() {
@@ -45,5 +46,57 @@ mod tests {
         ]);
 
         assert_matrix4_approx_eq!(view, expected, f32::EPSILON);
+    }
+
+    #[test]
+    fn test_view_matrix_translated() {
+        let forward = UnitVector3::new_unchecked(0.0, 0.0, 1.0);
+        let up = UnitVector3::new_unchecked(0.0, 1.0, 0.0);
+        let right = UnitVector3::new_unchecked(1.0, 0.0, 0.0);
+        let position = Vector3::new(2.0, 3.0, 5.0); // Камера смещена
+
+        let view = Matrix4::view_matrix(forward, up, right, position.clone());
+
+        // Позиция камеры априори должна быть транслирована в (0, 0, 0).
+        let camera_pos = view.apply(&position);
+        assert_approx_eq!(camera_pos.x, 0.0, f32::EPSILON);
+        assert_approx_eq!(camera_pos.y, 0.0, f32::EPSILON);
+        assert_approx_eq!(camera_pos.z, 0.0, f32::EPSILON);
+
+        // Точка перед камерой должна иметь отрицательную Z в пространстве камеры
+        let point_in_front = position + Vector3::new(0.0, 0.0, 1.0);
+        let transformed = view.apply(&point_in_front);
+        assert_approx_eq!(transformed.z, -1.0, f32::EPSILON);
+    }
+
+    #[test]
+    fn test_view_matrix_rotated_45_degrees() {
+        // Камера смотрит под углом 45° между +X и +Z
+        let angle = 45.0_f32.to_radians();
+        let forward = UnitVector3::new_unchecked(angle.sin(), 0.0, angle.cos());
+        let up = UnitVector3::new_unchecked(0.0, 1.0, 0.0);
+        let right = UnitVector3::new_unchecked(angle.cos(), 0.0, -angle.sin());
+        let position = Vector3::new(0.0, 0.0, 0.0);
+
+        let view = Matrix4::view_matrix(forward, up, right, position);
+
+        // Проверяем, что ось forward камеры действительно смотрит в правильном направлении
+        // В мировых координатах forward = (sin45, 0, cos45)
+        // В пространстве камеры это должно стать (0, 0, -1) - вперед по -Z
+
+        let world_forward = Vector3::new(SQRT_2 / 2.0, 0.0, SQRT_2 / 2.0); // Примерно forward
+        let camera_forward = view.apply(&world_forward);
+
+        // В пространстве камеры forward должен быть направлен вдоль -Z
+        assert_approx_eq!(camera_forward.x, 0.0, f32::EPSILON);
+        assert_approx_eq!(camera_forward.y, 0.0, f32::EPSILON);
+        assert_approx_eq!(camera_forward.z, -1.0, f32::EPSILON);
+
+        // Точка справа от камеры
+        let world_right = Vector3::new(SQRT_2 / 2.0, 0.0, -SQRT_2 / 2.0);
+        let camera_right = view.apply(&world_right);
+        assert_approx_eq!(camera_right.x, 1.0, f32::EPSILON); // В пространстве камеры +X
+        assert_approx_eq!(camera_right.y, 0.0, f32::EPSILON);
+        assert_approx_eq!(camera_right.z, 0.0, f32::EPSILON);
     }
 }
