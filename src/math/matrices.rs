@@ -1,4 +1,5 @@
 use crate::math::vectors::Vector3;
+use std::ops::Index;
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Matrix4 {
@@ -6,6 +7,10 @@ pub struct Matrix4 {
 }
 
 impl Matrix4 {
+    pub fn new(data: [[f32; 4]; 4]) -> Self {
+        Self { data }
+    }
+
     pub fn identity() -> Self {
         Self {
             data: [
@@ -51,6 +56,14 @@ impl Matrix4 {
     }
 }
 
+impl Index<usize> for Matrix4 {
+    type Output = [f32; 4];
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,49 +87,38 @@ mod tests {
     #[test]
     fn test_matrix_translation() {
         let translation = Matrix4::translation(2.0, 3.0, 4.0);
-
-        // Проверяем структуру матрицы трансляции
-        assert_eq!(translation.data[0][0], 1.0);
-        assert_eq!(translation.data[0][3], 2.0); // x translation
-
-        assert_eq!(translation.data[1][1], 1.0);
-        assert_eq!(translation.data[1][3], 3.0); // y translation
-
-        assert_eq!(translation.data[2][2], 1.0);
-        assert_eq!(translation.data[2][3], 4.0); // z translation
-
-        assert_eq!(translation.data[3][3], 1.0);
+        let expected = Matrix4::new([
+            [1.0, 0.0, 0.0, 2.0],
+            [0.0, 1.0, 0.0, 3.0],
+            [0.0, 0.0, 1.0, 4.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+        assert_eq!(expected, translation);
     }
 
     #[test]
     fn test_matrix_multiplication() {
-        let a = Matrix4 {
-            data: [
-                [1.0, 2.0, 0.0, 0.0],
-                [3.0, 4.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-        };
+        let a = Matrix4::new([
+            [1.0, 2.0, 0.0, 0.0],
+            [3.0, 4.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
 
-        let b = Matrix4 {
-            data: [
-                [5.0, 6.0, 0.0, 0.0],
-                [7.0, 8.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-        };
+        let b = Matrix4::new([
+            [5.0, 6.0, 0.0, 0.0],
+            [7.0, 8.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
 
         let result = a.multiply(&b);
-        let expected = Matrix4 {
-            data: [
-                [19.0, 22.0, 0.0, 0.0],
-                [43.0, 50.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-        };
+        let expected = Matrix4::new([
+            [19.0, 22.0, 0.0, 0.0],
+            [43.0, 50.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
         assert_eq!(expected, result);
     }
 

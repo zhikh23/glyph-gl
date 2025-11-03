@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Vector3 {
     pub x: f32,
@@ -34,18 +36,13 @@ impl Vector3 {
         (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
     }
 
-    pub fn normalize(self) -> Vector3 {
+    pub fn normalize(self) -> Option<UnitVector3> {
         let len = self.length();
         if len > 0.0 {
-            Self {
-                x: self.x / len,
-                y: self.y / len,
-                z: self.z / len,
-            }
+            Some(UnitVector3(self * (1.0 / len)))
         } else {
-            // Избегаем деления на нуль. Возвращать ошибку в этом месте будет дорого
-            // для остальных вычислений.
-            self
+            // Невозможно нормализовать нулевой вектор
+            None
         }
     }
 }
@@ -94,6 +91,27 @@ impl std::ops::Mul<Vector3> for f32 {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct UnitVector3(Vector3);
+
+impl UnitVector3 {
+    pub fn new_unchecked(x: f32, y: f32, z: f32) -> UnitVector3 {
+        UnitVector3(Vector3::new(x, y, z))
+    }
+
+    pub fn dot(&self, rhs: &UnitVector3) -> f32 {
+        self.0.dot(&rhs.0)
+    }
+}
+
+impl Deref for UnitVector3 {
+    type Target = Vector3;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,19 +144,16 @@ mod tests {
     #[test]
     fn test_vector_normalize() {
         let v = Vector3::new(3.0, 0.0, 0.0);
-        let normalized = v.normalize();
-        let expected = Vector3::new(1.0, 0.0, 0.0);
+        let normalized = v.normalize().unwrap();
+        let expected = UnitVector3::new_unchecked(1.0, 0.0, 0.0);
         assert_eq!(normalized, expected);
     }
 
     #[test]
     fn test_vector_normalize_zero() {
         let v = Vector3::new(0.0, 0.0, 0.0);
-        let expected = v.clone();
-        let normalized = v.normalize();
-
-        // Нормализация нулевого вектора должна вернуть нулевой вектор
-        assert_eq!(expected, normalized);
+        let res = v.normalize();
+        assert!(res.is_none());
     }
 
     #[test]
