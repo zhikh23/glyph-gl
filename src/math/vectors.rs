@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector3 {
     pub x: f32,
     pub y: f32,
@@ -20,11 +20,11 @@ impl Vector3 {
         }
     }
 
-    pub fn dot(&self, rhs: &Vector3) -> f32 {
+    pub fn dot(&self, rhs: Vector3) -> f32 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
 
-    pub fn cross(&self, rhs: &Vector3) -> Vector3 {
+    pub fn cross(&self, rhs: Vector3) -> Vector3 {
         Self {
             x: self.y * rhs.z - self.z * rhs.y,
             y: self.z * rhs.x - self.x * rhs.z,
@@ -91,7 +91,7 @@ impl std::ops::Mul<Vector3> for f32 {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UnitVector3(Vector3);
 
 impl UnitVector3 {
@@ -99,8 +99,8 @@ impl UnitVector3 {
         UnitVector3(Vector3::new(x, y, z))
     }
 
-    pub fn dot(&self, rhs: &UnitVector3) -> f32 {
-        self.0.dot(&rhs.0)
+    pub fn dot(&self, rhs: UnitVector3) -> f32 {
+        self.0.dot(rhs.0)
     }
 }
 
@@ -109,6 +109,33 @@ impl Deref for UnitVector3 {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Vector2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Vector2 {
+    pub fn new(x: f32, y: f32) -> Vector2 {
+        Vector2 { x, y }
+    }
+
+    pub fn dot(&self, rhs: Vector2) -> f32 {
+        self.x * rhs.x + self.y * rhs.y
+    }
+}
+
+impl std::ops::Sub for Vector2 {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
     }
 }
 
@@ -121,7 +148,7 @@ mod tests {
     fn test_vector_dot_product() {
         let v1 = Vector3::new(1.0, 2.0, 3.0);
         let v2 = Vector3::new(4.0, 5.0, 6.0);
-        let result = v1.dot(&v2);
+        let result = v1.dot(v2);
         assert_eq!(result, 32.0); // 1*4 + 2*5 + 3*6 = 32
     }
 
@@ -129,7 +156,7 @@ mod tests {
     fn test_vector_cross_product() {
         let v1 = Vector3::new(1.0, 0.0, 0.0);
         let v2 = Vector3::new(0.0, 1.0, 0.0);
-        let result = v1.cross(&v2);
+        let result = v1.cross(v2);
         let expected = Vector3::new(0.0, 0.0, 1.0);
         assert_eq!(result, expected);
     }

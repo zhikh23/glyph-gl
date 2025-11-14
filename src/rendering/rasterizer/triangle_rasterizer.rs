@@ -1,0 +1,117 @@
+use crate::math::vectors::{UnitVector3, Vector2, Vector3};
+use crate::rendering::frame_buffer::FrameBuffer;
+use crate::rendering::pipeline::fragment_shader::FragmentShader;
+use crate::rendering::pipeline::vertex_shader::ProcessedVertex;
+use crate::rendering::z_buffer::ZBuffer;
+
+struct ScreenBounds {
+    min_x: usize,
+    max_x: usize,
+    min_y: usize,
+    max_y: usize,
+}
+
+pub struct TriangleRasterizer;
+
+impl TriangleRasterizer {
+    pub fn rasterize_triangle(
+        v0: ProcessedVertex,
+        v1: ProcessedVertex,
+        v2: ProcessedVertex,
+        normal: UnitVector3,
+        z_buffer: &mut ZBuffer,
+        frame_buffer: &mut FrameBuffer,
+        fragment_shader: &FragmentShader,
+    ) {
+        let screen_triangle = [
+            Vector2::new(v0.x, v0.y),
+            Vector2::new(v1.x, v1.y),
+            Vector2::new(v2.x, v2.y),
+        ];
+
+        let bounds = Self::triangle_bounds(&screen_triangle);
+
+        for y in bounds.min_y..=bounds.max_y {
+            for x in bounds.min_x..=bounds.max_x {
+                let point = Vector2::new(x as f32, y as f32);
+                if let Some(barycentric) = Self::barycentric(
+                    point,
+                    screen_triangle[0],
+                    screen_triangle[1],
+                    screen_triangle[2],
+                ) {
+                    let depth = Self::interpolate_depth(barycentric, &v0, &v1, &v2);
+                    if depth.abs() < 1.0 && z_buffer.test_and_set(x, y, depth) {
+                        let intensity = fragment_shader.process(normal);
+                        frame_buffer.set(x, y, intensity);
+                    }
+                }
+            }
+        }
+    }
+
+    fn triangle_bounds(triangle: &[Vector2; 3]) -> ScreenBounds {
+        let mut bounds = ScreenBounds {
+            min_x: triangle[0].x as usize,
+            max_x: triangle[0].x as usize,
+            min_y: triangle[0].y as usize,
+            max_y: triangle[0].y as usize,
+        };
+        for coord in triangle[1..].iter() {
+            let x = coord.x as usize;
+            if x < bounds.min_x {
+                bounds.min_x = x;
+            } else if x > bounds.max_x {
+                bounds.max_x = x;
+            }
+
+            let y = coord.y as usize;
+            if y < bounds.min_y {
+                bounds.min_y = y;
+            } else if y > bounds.max_y {
+                bounds.max_y = y;
+            }
+        }
+        bounds
+    }
+
+    fn barycentric(point: Vector2, a: Vector2, b: Vector2, c: Vector2) -> Option<Vector3> {
+        // Вычисление барицентрических координат для вектора point с заданным базисом (a, b, c)
+        // сводится к решению СЛАУ. Естественно использование метода Крамера.
+
+        let v0 = b - a;
+        let v1 = c - a;
+        let v2 = point - a;
+
+        let d00 = v0.dot(v0);
+        let d01 = v0.dot(v1);
+        let d11 = v1.dot(v1);
+        let d20 = v2.dot(v0);
+        let d21 = v2.dot(v1);
+
+        let denom = d00 * d11 - d01 * d01;
+        if denom.abs() < f32::EPSILON {
+            return None;
+        }
+
+        let v = (d11 * d20 - d01 * d21) / denom;
+        let w = (d00 * d21 - d01 * d20) / denom;
+        let u = 1.0 - v - w;
+
+        // Проверка, что точка оказалась внутри треугольника
+        if u >= 0.0 && v >= 0.0 && w >= 0.0 {
+            Some(Vector3::new(u, v, w))
+        } else {
+            None
+        }
+    }
+
+    fn interpolate_depth(
+        barycentric: Vector3,
+        v0: &ProcessedVertex,
+        v1: &ProcessedVertex,
+        v2: &ProcessedVertex,
+    ) -> f32 {
+        barycentric.x * v0.z + barycentric.y * v1.z + barycentric.z * v2.z
+    }
+}

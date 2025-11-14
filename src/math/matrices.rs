@@ -45,7 +45,7 @@ impl Matrix4 {
         res
     }
 
-    pub fn apply(&self, v: &Vector3) -> Vector3 {
+    pub fn transform(&self, v: Vector3) -> Vector3 {
         let x =
             self.data[0][0] * v.x + self.data[0][1] * v.y + self.data[0][2] * v.z + self.data[0][3];
         let y =
@@ -126,7 +126,7 @@ mod tests {
     fn test_matrix_vector_transformation() {
         let v = Vector3::new(4.0, 5.0, 6.0);
         let translation = Matrix4::translation(1.0, 2.0, 3.0);
-        let result = translation.apply(&v);
+        let result = translation.transform(v);
         let expected = Vector3::new(5.0, 7.0, 9.0);
         assert_eq!(result, expected);
     }
@@ -135,7 +135,7 @@ mod tests {
     fn test_identity_apply() {
         let identity = Matrix4::identity();
         let v = Vector3::new(1.0, 2.0, 3.0);
-        let result = identity.apply(&v);
+        let result = identity.transform(v);
         assert_eq!(v, result);
     }
 
