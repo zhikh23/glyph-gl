@@ -1,6 +1,7 @@
 use crate::camera::fpv_camera::FPVCamera;
 use crate::geometry::mesh::Mesh;
 use crate::math::vectors::UnitVector3;
+use crate::output::formatter::OutputFormatter;
 use crate::rendering::frame_buffer::FrameBuffer;
 use crate::rendering::pipeline::fragment_shader::FragmentShader;
 use crate::rendering::pipeline::vertex_shader::VertexShader;
@@ -12,15 +13,23 @@ pub struct Renderer {
     z_buffer: ZBuffer,
     vertex_shader: VertexShader,
     fragment_shader: FragmentShader,
+    output: Box<dyn OutputFormatter>,
 }
 
 impl Renderer {
-    pub fn new(width: usize, height: usize, camera: &FPVCamera, light: UnitVector3) -> Self {
+    pub fn new(
+        width: usize,
+        height: usize,
+        camera: &FPVCamera,
+        light: UnitVector3,
+        output: Box<dyn OutputFormatter>,
+    ) -> Self {
         Self {
             frame_buffer: FrameBuffer::new(width, height),
             z_buffer: ZBuffer::new(width, height),
             vertex_shader: VertexShader::new(camera.view_matrix(), width, height),
             fragment_shader: FragmentShader::new(light),
+            output,
         }
     }
 
@@ -50,6 +59,6 @@ impl Renderer {
     }
 
     pub fn frame(&self) -> String {
-        self.frame_buffer.to_string()
+        self.output.frame_to_string(&self.frame_buffer)
     }
 }

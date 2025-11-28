@@ -1,13 +1,7 @@
-use std::fmt::Display;
-
-pub const ASCII_GRADIENT: &str =
-    " .\'`^\",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
-//" .:-=+*#%@";
-
 pub struct FrameBuffer {
     width: usize,
     height: usize,
-    data: Vec<char>,
+    data: Vec<f32>,
 }
 
 impl FrameBuffer {
@@ -15,8 +9,26 @@ impl FrameBuffer {
         Self {
             width,
             height,
-            data: vec![ASCII_GRADIENT.as_bytes()[0] as char; width * height],
+            data: vec![0.0; width * height],
         }
+    }
+
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
+    pub fn get(&self, x: usize, y: usize) -> f32 {
+        if x >= self.width || y >= self.height {
+            panic!(
+                "out of bounds ({}, {}): {}, {}",
+                self.width, self.height, x, y
+            );
+        }
+        self.data[x + y * self.width]
     }
 
     pub fn set(&mut self, x: usize, y: usize, intensity: f32) {
@@ -26,26 +38,10 @@ impl FrameBuffer {
                 self.width, self.height, x, y
             );
         }
-        let idx = ((ASCII_GRADIENT.len() - 1) as f32 * intensity) as usize;
-        let ch = ASCII_GRADIENT.as_bytes()[idx] as char;
-        self.data[y * self.width + x] = ch;
+        self.data[y * self.width + x] = intensity;
     }
 
     pub fn clear(&mut self) {
-        self.data.fill(ASCII_GRADIENT.as_bytes()[0] as char);
-    }
-}
-
-impl Display for FrameBuffer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        let total = self.data.len();
-        for (i, &ch) in self.data.iter().enumerate() {
-            write!(f, "{}", ch)?;
-            // Последний '\n' не печатается
-            if (i + 1) % self.width == 0 && i < total - 1 {
-                writeln!(f)?;
-            }
-        }
-        Ok(())
+        self.data.fill(0.0)
     }
 }
