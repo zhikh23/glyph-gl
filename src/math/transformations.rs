@@ -35,6 +35,7 @@ impl Matrix4 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::math::matrices::Transformer;
     use crate::math::vectors::{UnitVector3, Vector3};
     use crate::{assert_approx_eq, assert_matrix4_approx_eq};
     use std::f32::consts::SQRT_2;
@@ -68,7 +69,7 @@ mod tests {
         let right = UnitVector3::new_unchecked(1.0, 0.0, 0.0);
         let position = Vector3::new(2.0, 3.0, 5.0); // Камера смещена
 
-        let view = Matrix4::view_matrix(forward, up, right, position.clone());
+        let view = Matrix4::view_matrix(forward, up, right, position);
 
         // Позиция камеры априори должна быть транслирована в (0, 0, 0).
         let camera_pos = view.transform(position);

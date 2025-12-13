@@ -16,10 +16,14 @@ impl OutputFormatter for BrailleColorFormatter {
                 let (braille_char, avg_intensity) =
                     self.compute_braille_with_intensity(buffer, bx, by);
 
-                let color_code = self.intensity_to_color(avg_intensity);
-                result.push_str(&color_code);
-                result.push(braille_char);
-                result.push_str("\x1b[0m");
+                if avg_intensity > 0.0 {
+                    let color_code = self.intensity_to_color(avg_intensity);
+                    result.push_str(&color_code);
+                    result.push(braille_char);
+                    result.push_str("\x1b[0m");
+                } else {
+                    result.push(' ');
+                }
             }
             result.push('\n');
         }
@@ -66,24 +70,20 @@ impl BrailleColorFormatter {
     }
 
     fn intensity_to_color(&self, intensity: f32) -> String {
-        let clamped = intensity.clamp(0.0, 1.0);
-
-        let (r, g, b) = if clamped < 0.5 {
-            // Красный -> Желтый
-            let t = clamped * 2.0;
-            let r = 255;
-            let g = (255.0 * t) as u8;
-            let b = 0;
-            (r, g, b)
+        let t = intensity.clamp(0.0, 1.0);
+        /*
+        let (r, g, b) = if t < 0.0722 {
+            let b = (t / 0.0722 * 255.0) as u8;
+            (0, 0, b)
+        } else if t < 0.2848 {
+            let r = ((t - 0.0722) / 0.2126 * 255.0) as u8;
+            (r, 0, 255)
         } else {
-            // Желтый -> Белый
-            let t = (clamped - 0.5) * 2.0;
-            let r = 255;
-            let g = 255;
-            let b = (255.0 * t) as u8;
-            (r, g, b)
+            let g = ((t - 0.2848) / 0.7152 * 255.0) as u8;
+            (255, g, 255)
         };
-
+        */
+        let (r, g, b) = ((t * 255.0) as u8, (t * 255.0) as u8, (t * 255.0) as u8);
         format!("\x1b[38;2;{};{};{}m", r, g, b)
     }
 

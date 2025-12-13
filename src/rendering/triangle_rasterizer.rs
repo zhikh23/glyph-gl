@@ -1,4 +1,4 @@
-use crate::math::vectors::{UnitVector3, Vector2, Vector3};
+use crate::math::vectors::{Direction3, Normal3, UnitVector3, Vector2, Vector3};
 use crate::rendering::frame_buffer::FrameBuffer;
 use crate::rendering::pipeline::fragment_shader::FragmentShader;
 use crate::rendering::pipeline::vertex_shader::ProcessedVertex;
@@ -11,26 +11,26 @@ struct ScreenBounds {
     max_y: usize,
 }
 
-pub struct TriangleRasterizer;
+pub struct TriangleRasterizer {
+    width: usize,
+    height: usize,
+}
 
 impl TriangleRasterizer {
+    pub fn new(width: usize, height: usize) -> Self {
+        Self { width, height }
+    }
+
     pub fn rasterize_triangle(
-        v0: ProcessedVertex,
-        v1: ProcessedVertex,
-        v2: ProcessedVertex,
-        normal: UnitVector3,
+        &self,
+        processed: [ProcessedVertex; 3],
+        light: Direction3,
         z_buffer: &mut ZBuffer,
         frame_buffer: &mut FrameBuffer,
         fragment_shader: &FragmentShader,
     ) {
-        let screen_triangle = [
-            Vector2::new(v0.x, v0.y),
-            Vector2::new(v1.x, v1.y),
-            Vector2::new(v2.x, v2.y),
-        ];
-
+        let screen_triangle = processed.clone().map(|pv| self.ndc_to_screen(pv.ndc_pos));
         let bounds = Self::triangle_bounds(&screen_triangle);
-
         for y in bounds.min_y..=bounds.max_y {
             for x in bounds.min_x..=bounds.max_x {
                 let point = Vector2::new(x as f32, y as f32);
@@ -40,14 +40,31 @@ impl TriangleRasterizer {
                     screen_triangle[1],
                     screen_triangle[2],
                 ) {
-                    let depth = Self::interpolate_depth(barycentric, &v0, &v1, &v2);
+                    let depth = Self::interpolate_depth(
+                        barycentric,
+                        &processed[0],
+                        &processed[1],
+                        &processed[2],
+                    );
+                    let normal = Self::interpolate_normal(
+                        barycentric,
+                        &processed[0],
+                        &processed[1],
+                        &processed[2],
+                    );
                     if depth.abs() < 1.0 && z_buffer.test_and_set(x, y, depth) {
-                        let intensity = fragment_shader.process(normal);
+                        let intensity = fragment_shader.process(normal, light);
                         frame_buffer.set(x, y, intensity);
                     }
                 }
             }
         }
+    }
+
+    fn ndc_to_screen(&self, ndc: Vector3) -> Vector2 {
+        let x = (ndc.x + 1.0) * 0.5 * (self.width as f32 - 1.0);
+        let y = (1.0 - ndc.y) * 0.5 * (self.height as f32 - 1.0);
+        Vector2::new(x, y)
     }
 
     fn triangle_bounds(triangle: &[Vector2; 3]) -> ScreenBounds {
@@ -89,6 +106,7 @@ impl TriangleRasterizer {
         let d20 = v2.dot(v0);
         let d21 = v2.dot(v1);
 
+        // Проверка на вырожденность треугольника
         let denom = d00 * d11 - d01 * d01;
         if denom.abs() < f32::EPSILON {
             return None;
@@ -112,6 +130,19 @@ impl TriangleRasterizer {
         v1: &ProcessedVertex,
         v2: &ProcessedVertex,
     ) -> f32 {
-        barycentric.x * v0.z + barycentric.y * v1.z + barycentric.z * v2.z
+        barycentric.x * v0.ndc_pos.z + barycentric.y * v1.ndc_pos.z + barycentric.z * v2.ndc_pos.z
+    }
+
+    fn interpolate_normal(
+        barycentric: Vector3,
+        v0: &ProcessedVertex,
+        v1: &ProcessedVertex,
+        v2: &ProcessedVertex,
+    ) -> Normal3 {
+        (barycentric.x * (*v0.view_nor)
+            + barycentric.y * (*v1.view_nor)
+            + barycentric.z * (*v2.view_nor))
+            .normalize()
+            .unwrap_or(UnitVector3::new_unchecked(0.0, 0.0, 1.0))
     }
 }

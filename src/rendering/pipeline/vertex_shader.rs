@@ -1,37 +1,29 @@
-use std::ops::Deref;
+use crate::geometry::mesh::Vertex;
+use crate::math::matrices::{Matrix4, Transformer};
+use crate::math::vectors::{Normal3, Vector3};
 
-use crate::geometry::vertex::Vertex;
-use crate::math::matrices::Matrix4;
-
-pub struct ProcessedVertex(Vertex);
-
-impl Deref for ProcessedVertex {
-    type Target = Vertex;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+#[derive(Clone)]
+pub struct ProcessedVertex {
+    pub ndc_pos: Vector3,
+    pub view_pos: Vector3,
+    pub view_nor: Normal3,
 }
 
-pub struct VertexShader {
-    proj: Matrix4,
-    width: usize,
-    height: usize,
-}
+pub struct VertexShader;
 
 impl VertexShader {
-    pub fn new(proj: Matrix4, width: usize, height: usize) -> VertexShader {
-        Self {
-            proj,
-            width,
-            height,
-        }
+    pub fn new() -> VertexShader {
+        Self
     }
 
-    pub fn process(&self, vertex: Vertex) -> ProcessedVertex {
-        let clip_pos = self.proj.transform(*vertex);
-        let screen_x = (clip_pos.x + 1.0) * 0.5 * self.width as f32;
-        let screen_y = (1.0 - clip_pos.y) * 0.5 * self.height as f32;
-        ProcessedVertex(Vertex::new(screen_x, screen_y, clip_pos.z))
+    pub fn process(&self, vertex: &Vertex, view: &Matrix4, proj: &Matrix4) -> ProcessedVertex {
+        let view_pos = view.transform(vertex.pos);
+        let view_nor = view.transform(vertex.nor);
+        let ndc_pos = proj.transform(view_pos);
+        ProcessedVertex {
+            ndc_pos,
+            view_pos,
+            view_nor,
+        }
     }
 }

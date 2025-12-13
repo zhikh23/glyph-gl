@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, Mul, Neg};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector3 {
@@ -59,6 +59,14 @@ impl std::ops::Add for Vector3 {
     }
 }
 
+impl std::ops::AddAssign for Vector3 {
+    fn add_assign(&mut self, other: Self) {
+        self.x += other.x;
+        self.y += other.y;
+        self.z += other.z;
+    }
+}
+
 impl std::ops::Sub for Vector3 {
     type Output = Self;
 
@@ -102,6 +110,10 @@ impl UnitVector3 {
     pub fn dot(&self, rhs: UnitVector3) -> f32 {
         self.0.dot(rhs.0)
     }
+
+    pub fn downgrade(self) -> Vector3 {
+        self.0
+    }
 }
 
 impl Deref for UnitVector3 {
@@ -111,6 +123,17 @@ impl Deref for UnitVector3 {
         &self.0
     }
 }
+
+impl Neg for UnitVector3 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self(self.0.mul(-1.0))
+    }
+}
+
+pub type Normal3 = UnitVector3;
+pub type Direction3 = UnitVector3;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vector2 {

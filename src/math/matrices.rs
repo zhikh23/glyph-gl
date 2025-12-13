@@ -1,9 +1,76 @@
-use crate::math::vectors::Vector3;
 use std::ops::Index;
+
+use crate::math::vectors::{Normal3, Vector3};
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct Matrix3 {
+    data: [[f32; 3]; 3],
+}
+
+impl Matrix3 {
+    pub fn new(data: [[f32; 3]; 3]) -> Self {
+        Self { data }
+    }
+
+    fn inv(&self) -> Option<Matrix3> {
+        let det = self.det();
+        if det.abs() < f32::EPSILON {
+            return None; // Вырожденная матрица
+        }
+
+        let inv_det = 1.0 / det;
+
+        // Миноры (через детерминанты 2x2)
+        let m00 = self.data[1][1] * self.data[2][2] - self.data[1][2] * self.data[2][1];
+        let m01 = self.data[1][0] * self.data[2][2] - self.data[1][2] * self.data[2][0];
+        let m02 = self.data[1][0] * self.data[2][1] - self.data[1][1] * self.data[2][0];
+
+        let m10 = self.data[0][1] * self.data[2][2] - self.data[0][2] * self.data[2][1];
+        let m11 = self.data[0][0] * self.data[2][2] - self.data[0][2] * self.data[2][0];
+        let m12 = self.data[0][0] * self.data[2][1] - self.data[0][1] * self.data[2][0];
+
+        let m20 = self.data[0][1] * self.data[1][2] - self.data[0][2] * self.data[1][1];
+        let m21 = self.data[0][0] * self.data[1][2] - self.data[0][2] * self.data[1][0];
+        let m22 = self.data[0][0] * self.data[1][1] - self.data[0][1] * self.data[1][0];
+
+        // Матрица алгебраических дополнений с транспонированием
+        Some(Matrix3::new([
+            [m00 * inv_det, -m10 * inv_det, m20 * inv_det],
+            [-m01 * inv_det, m11 * inv_det, -m21 * inv_det],
+            [m02 * inv_det, -m12 * inv_det, m22 * inv_det],
+        ]))
+    }
+
+    fn det(&self) -> f32 {
+        self.data[0][0] * (self.data[1][1] * self.data[2][2] - self.data[1][2] * self.data[2][1])
+            - self.data[0][1]
+                * (self.data[1][0] * self.data[2][2] - self.data[1][2] * self.data[2][0])
+            + self.data[0][2]
+                * (self.data[1][0] * self.data[2][1] - self.data[1][1] * self.data[2][0])
+    }
+
+    pub fn transpose(&self) -> Matrix3 {
+        Matrix3 {
+            data: [
+                [self.data[0][0], self.data[1][0], self.data[2][0]],
+                [self.data[0][1], self.data[1][1], self.data[2][1]],
+                [self.data[0][2], self.data[1][2], self.data[2][2]],
+            ],
+        }
+    }
+}
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Matrix4 {
     data: [[f32; 4]; 4],
+}
+
+impl Index<usize> for Matrix4 {
+    type Output = [f32; 4];
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
+    }
 }
 
 impl Matrix4 {
@@ -45,7 +112,29 @@ impl Matrix4 {
         res
     }
 
-    pub fn transform(&self, v: Vector3) -> Vector3 {
+    fn upper_3x3(&self) -> Matrix3 {
+        Matrix3::new([
+            [self.data[0][0], self.data[0][1], self.data[0][2]],
+            [self.data[1][0], self.data[1][1], self.data[1][2]],
+            [self.data[2][0], self.data[2][1], self.data[2][2]],
+        ])
+    }
+}
+
+impl Index<usize> for Matrix3 {
+    type Output = [f32; 3];
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
+    }
+}
+
+pub trait Transformer<T> {
+    fn transform(&self, t: T) -> T;
+}
+
+impl Transformer<Vector3> for Matrix4 {
+    fn transform(&self, v: Vector3) -> Vector3 {
         let x =
             self.data[0][0] * v.x + self.data[0][1] * v.y + self.data[0][2] * v.z + self.data[0][3];
         let y =
@@ -56,11 +145,14 @@ impl Matrix4 {
     }
 }
 
-impl Index<usize> for Matrix4 {
-    type Output = [f32; 4];
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.data[index]
+impl Transformer<Normal3> for Matrix4 {
+    fn transform(&self, n: Normal3) -> Normal3 {
+        let m3 = self.upper_3x3();
+        let inv = m3.inv().unwrap().transpose();
+        let x = inv[0][0] * n.x + inv[0][1] * n.y + inv[0][2] * n.z;
+        let y = inv[1][0] * n.x + inv[1][1] * n.y + inv[1][2] * n.z;
+        let z = inv[2][0] * n.x + inv[2][1] * n.y + inv[2][2] * n.z;
+        Vector3::new(x, y, z).normalize().unwrap() // Афинные преобразования сохраняет вектор
     }
 }
 

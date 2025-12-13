@@ -1,56 +1,50 @@
-use crate::camera::fpv_camera::FPVCamera;
+use crate::camera::base::Camera;
 use crate::geometry::mesh::Mesh;
 use crate::math::vectors::UnitVector3;
 use crate::output::formatter::OutputFormatter;
 use crate::rendering::frame_buffer::FrameBuffer;
 use crate::rendering::pipeline::fragment_shader::FragmentShader;
 use crate::rendering::pipeline::vertex_shader::VertexShader;
-use crate::rendering::rasterizer::triangle_rasterizer::TriangleRasterizer;
+use crate::rendering::triangle_rasterizer::TriangleRasterizer;
 use crate::rendering::z_buffer::ZBuffer;
 
 pub struct Renderer {
     frame_buffer: FrameBuffer,
     z_buffer: ZBuffer,
+    rasterizer: TriangleRasterizer,
     vertex_shader: VertexShader,
     fragment_shader: FragmentShader,
     output: Box<dyn OutputFormatter>,
 }
 
 impl Renderer {
-    pub fn new(
-        width: usize,
-        height: usize,
-        camera: &FPVCamera,
-        light: UnitVector3,
-        output: Box<dyn OutputFormatter>,
-    ) -> Self {
+    pub fn new((width, height): (usize, usize), output: Box<dyn OutputFormatter>) -> Self {
         Self {
             frame_buffer: FrameBuffer::new(width, height),
             z_buffer: ZBuffer::new(width, height),
-            vertex_shader: VertexShader::new(camera.view_matrix(), width, height),
-            fragment_shader: FragmentShader::new(light),
+            rasterizer: TriangleRasterizer::new(width, height),
+            vertex_shader: VertexShader::new(),
+            fragment_shader: FragmentShader::new(0.0, 0.95),
             output,
         }
     }
 
-    pub fn render(&mut self, mesh: &Mesh) {
+    pub fn render(&mut self, mesh: &Mesh, camera: &impl Camera) {
         self.frame_buffer.clear();
         self.z_buffer.clear();
 
-        for face in &mesh.faces {
-            let v0 = &mesh.vertices[face.indices[0]];
-            let v1 = &mesh.vertices[face.indices[1]];
-            let v2 = &mesh.vertices[face.indices[2]];
+        let view = camera.view();
+        let proj = camera.proj();
 
-            let processed_v0 = self.vertex_shader.process(*v0);
-            let processed_v1 = self.vertex_shader.process(*v1);
-            let processed_v2 = self.vertex_shader.process(*v2);
-
-            TriangleRasterizer::rasterize_triangle(
-                processed_v0,
-                processed_v1,
-                processed_v2,
-                face.normal,
+        for tr in mesh.iter() {
+            let (v0, v1, v2) = (
+                self.vertex_shader.process(&tr.vertices()[0], &view, &proj),
+                self.vertex_shader.process(&tr.vertices()[1], &view, &proj),
+                self.vertex_shader.process(&tr.vertices()[2], &view, &proj),
+            );
+            self.rasterizer.rasterize_triangle(
+                [v0, v1, v2],
+                UnitVector3::new_unchecked(0.0, 0.0, 1.0),
                 &mut self.z_buffer,
                 &mut self.frame_buffer,
                 &self.fragment_shader,
