@@ -25,7 +25,7 @@ impl OutputFormatter for BrailleColorFormatter {
                     result.push(' ');
                 }
             }
-            result.push('\n');
+            result.push_str("\r\n");
         }
 
         result

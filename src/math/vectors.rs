@@ -1,4 +1,4 @@
-use std::ops::{Deref, Neg};
+use std::ops::Deref;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector3 {
@@ -111,6 +111,18 @@ impl std::ops::Div<f32> for Vector3 {
     }
 }
 
+impl std::ops::Neg for Vector3 {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Self {
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
+        }
+    }
+}
+
 impl std::ops::Mul<Vector3> for f32 {
     type Output = Vector3;
 
@@ -144,11 +156,11 @@ impl Deref for UnitVector3 {
     }
 }
 
-impl Neg for UnitVector3 {
+impl std::ops::Neg for UnitVector3 {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Self(self.0 * -1.0)
+        Self(-self.0)
     }
 }
 

@@ -169,6 +169,14 @@ impl Mesh {
         self.scale(max_extent / aabb.max_extent());
     }
 
+    pub fn translate(&mut self, delta: Vector3) {
+        self.vertices.iter_mut().for_each(|v| *v += delta);
+    }
+
+    pub fn centering(&mut self) {
+        self.translate(-self.center());
+    }
+
     pub fn aabb(&self) -> Aabb {
         let left = self
             .vertices

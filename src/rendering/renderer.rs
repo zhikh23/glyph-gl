@@ -1,6 +1,7 @@
 use crate::camera::base::Camera;
+use crate::config::Config;
 use crate::geometry::mesh::Mesh;
-use crate::math::vectors::UnitVector3;
+use crate::math::vectors::Direction3;
 use crate::output::formatter::OutputFormatter;
 use crate::rendering::frame_buffer::FrameBuffer;
 use crate::rendering::pipeline::fragment_shader::FragmentShader;
@@ -18,14 +19,18 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new((width, height): (usize, usize), output: Box<dyn OutputFormatter>) -> Self {
-        let (width, height) = (width * 2, height * 4);
+    pub fn new(config: &Config, output: Box<dyn OutputFormatter>) -> Self {
         Self {
-            frame_buffer: FrameBuffer::new(width, height),
-            z_buffer: ZBuffer::new(width, height),
-            rasterizer: TriangleRasterizer::new(width, height),
+            frame_buffer: FrameBuffer::new(config.frame_width, config.frame_height),
+            z_buffer: ZBuffer::new(config.frame_width, config.frame_height),
+            rasterizer: TriangleRasterizer::new(config.frame_width, config.frame_height),
             vertex_shader: VertexShader::new(),
-            fragment_shader: FragmentShader::new(0.05, 0.7),
+            fragment_shader: FragmentShader::new(
+                config.light_ambient,
+                config.light_diffuse,
+                config.light_specular,
+                config.light_specular,
+            ),
             output,
         }
     }
@@ -45,7 +50,10 @@ impl Renderer {
             );
             self.rasterizer.rasterize_triangle(
                 [v0, v1, v2],
-                UnitVector3::new_unchecked(0.0, 0.0, 1.0),
+                // Свет направлен по направлению взгляда камеры.
+                // Так как на данном этапе всё находится в view space,
+                // то направление взгляда известно.
+                Direction3::new_unchecked(0.0, 0.0, 1.0),
                 &mut self.z_buffer,
                 &mut self.frame_buffer,
                 &self.fragment_shader,

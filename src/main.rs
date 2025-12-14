@@ -1,220 +1,181 @@
+pub mod app;
 pub mod camera;
+pub mod config;
 pub mod geometry;
 pub mod io;
 pub mod math;
 pub mod output;
 pub mod rendering;
 
-use clap::{Arg, Command};
-use crossterm::cursor::MoveTo;
-use crossterm::event::{Event, KeyCode, KeyEvent};
-use crossterm::style::Print;
-use crossterm::terminal::EnterAlternateScreen;
-use crossterm::terminal::LeaveAlternateScreen;
-use crossterm::{ExecutableCommand, QueueableCommand, event, terminal};
+use clap::{Arg, ArgAction, Command, value_parser};
+use crossterm::terminal;
 use std::error::Error;
-use std::io::{Write, stdout};
-use std::ops::Sub;
-use std::path::Path;
-use std::thread;
-use std::time::{Duration, Instant};
 
-use crate::camera::look_at_camera::LookAtCamera;
-use crate::geometry::mesh::Mesh;
-use crate::io::obj_loader::ObjLoader;
+use crate::app::App;
+use crate::config::{Config, ShadingMode};
 use crate::math::vectors::Vector3;
-use crate::output::brailler_formatter::BrailleColorFormatter;
-use crate::rendering::renderer::Renderer;
 
-const ROTATE_SPEED_RADS: f32 = 90.0;
-const MOVEMENT_SPEED: f32 = 2.0;
-
-pub struct App {
-    renderer: Renderer,
-    is_running: bool,
-    rotate_speed: f32,
-
-    camera: LookAtCamera,
-    mesh: Mesh,
-}
-
-impl App {
-    pub fn new<P: AsRef<Path>>(obj_file: P) -> Self {
-        let tmp = terminal::size().unwrap_or((80, 24));
-        let mut term_size = (tmp.0 as usize, tmp.1 as usize);
-        term_size.1 -= 3;
-        let aspect = 0.5 * term_size.0 as f32 / term_size.1 as f32;
-
-        let output = Box::new(BrailleColorFormatter);
-        let renderer = Renderer::new(term_size, output);
-
-        let raw_mesh = ObjLoader::load_from_file(obj_file)
-            .unwrap_or_else(|e| panic!("failed to load model: {:?}", e));
-        let mut mesh = Mesh::with_smooth_normals(raw_mesh)
-            .unwrap_or_else(|e| panic!("failed to create mesh: {:?}", e));
-        mesh.fit(2.0);
-
-        let mesh_center = mesh.center();
-        let camera = LookAtCamera::new(
-            Vector3::new(0.0, mesh_center.y, 2.0),
-            mesh_center,
-            (aspect * 2.0, 2.0),
-        );
-
-        App {
-            renderer,
-            is_running: true,
-            rotate_speed: ROTATE_SPEED_RADS,
-            camera,
-            mesh,
-        }
-    }
-
-    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        terminal::enable_raw_mode()?;
-        stdout().execute(EnterAlternateScreen)?;
-
-        self.main_loop()?;
-
-        stdout().execute(LeaveAlternateScreen)?;
-        terminal::disable_raw_mode()?;
-
-        Ok(())
-    }
-
-    fn main_loop(&mut self) -> Result<(), Box<dyn Error>> {
-        let mut stdout = stdout();
-        let frame_duration = Duration::from_millis(16); // ~60 FPS
-
-        let mut frame_start = Instant::now().sub(frame_duration);
-
-        let mut i = 0;
-        let mut fps: f32 = 60.0;
-        let mut acc: f32 = 0.0;
-
-        while self.is_running {
-            let dt = frame_start.elapsed().as_secs_f32();
-            self.handle_input(dt)?;
-            eprintln!("FPS={:.1}", fps);
-            acc += dt;
-            i += 1;
-            if i >= 10 {
-                i = 0;
-                fps = 10.0 / acc;
-                acc = 0.0;
-            }
-            frame_start = Instant::now();
-
-            self.render(&mut stdout)?;
-
-            let elapsed = frame_start.elapsed();
-            if elapsed < frame_duration {
-                thread::sleep(frame_duration - elapsed);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn handle_input(&mut self, dt: f32) -> Result<(), Box<dyn Error>> {
-        while event::poll(Duration::from_millis(10))? {
-            if let Event::Key(KeyEvent {
-                code,
-                modifiers: _,
-                kind: _,
-                state: _,
-            }) = event::read()?
-            {
-                match code {
-                    KeyCode::Char('w') | KeyCode::Char('W') => {
-                        self.look_up(dt);
-                    }
-                    KeyCode::Char('s') | KeyCode::Char('S') => {
-                        self.look_down(dt);
-                    }
-                    KeyCode::Char('a') | KeyCode::Char('A') => {
-                        self.look_left(dt);
-                    }
-                    KeyCode::Char('d') | KeyCode::Char('D') => {
-                        self.look_right(dt);
-                    }
-
-                    KeyCode::Char('r') | KeyCode::Char('R') => {
-                        self.zoom_in(dt);
-                    }
-                    KeyCode::Char('f') | KeyCode::Char('F') => {
-                        self.zoom_out(dt);
-                    }
-
-                    // Выход
-                    KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Esc => {
-                        self.is_running = false;
-                    }
-
-                    // Отпускание клавиш
-                    _ => {}
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn render(&mut self, stdout: &mut std::io::Stdout) -> Result<(), Box<dyn Error>> {
-        self.renderer.render(&self.mesh, &self.camera);
-        let frame = self.renderer.frame();
-        let frame = frame.replace("\n", "\r\n");
-        stdout.queue(MoveTo(0, 0))?;
-        println!(
-            "eye={:?} target={:?}\r",
-            self.camera.eye(),
-            self.camera.target()
-        );
-        stdout.queue(Print(frame))?;
-        stdout.flush()?;
-        Ok(())
-    }
-
-    fn look_up(&mut self, dt: f32) {
-        self.camera.orbit_around_target(0.0, self.rotate_speed * dt);
-    }
-
-    fn look_down(&mut self, dt: f32) {
-        self.camera
-            .orbit_around_target(0.0, -self.rotate_speed * dt);
-    }
-
-    fn look_left(&mut self, dt: f32) {
-        self.camera.orbit_around_target(self.rotate_speed * dt, 0.0);
-    }
-
-    fn look_right(&mut self, dt: f32) {
-        self.camera
-            .orbit_around_target(-self.rotate_speed * dt, 0.0);
-    }
-
-    fn zoom_in(&mut self, dt: f32) {
-        self.camera.zoom(-MOVEMENT_SPEED * dt);
-    }
-
-    fn zoom_out(&mut self, dt: f32) {
-        self.camera.zoom(MOVEMENT_SPEED * dt);
-    }
-}
-
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let matches = Command::new("GlyphGL")
-        .version("0.9")
+        .version("1.0.0")
         .author("Kirill Zhikharev")
         .about("Subpixel terminal 3D .obj render")
         .arg(
-            Arg::new("file")
-                .help("Wavefront OBJ file")
+            Arg::new("model")
                 .required(true)
-                .index(1),
+                .index(1)
+                .help("Path to Wavefront OBJ (.obj) model file"),
+        )
+        .arg(
+            Arg::new("static-mode")
+                .long("static")
+                .short('s')
+                .action(ArgAction::SetTrue)
+                .help("Static mode: render single frame"),
+        )
+        .arg(
+            Arg::new("frame-width")
+                .short('w')
+                .long("width")
+                .value_parser(value_parser!(usize))
+                .help("Width of output image"),
+        )
+        .arg(
+            Arg::new("frame-height")
+                .short('h')
+                .long("height")
+                .value_parser(value_parser!(usize))
+                .help("Height of output image"),
+        )
+        .arg(
+            Arg::new("no-culling")
+                .long("no-culling")
+                .help("Disable backface culling")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("shading")
+                .long("shading")
+                .value_parser(value_parser!(ShadingMode))
+                .help("Shading mode"),
+        )
+        .arg(
+            Arg::new("camera-speed")
+                .long("camera-speed")
+                .value_parser(value_parser!(f32))
+                .help("Camera speed"),
+        )
+        .arg(
+            Arg::new("camera-rotation-speed")
+                .long("camera-rotation-speed")
+                .value_parser(value_parser!(f32))
+                .help("Camera rotation speed"),
+        )
+        .arg(
+            Arg::new("camera-zooming-speed")
+                .long("camera-zooming-speed")
+                .value_parser(value_parser!(f32))
+                .help("Camera zooming speed"),
+        )
+        .arg(
+            Arg::new("camera-pos")
+                .long("camera-pos")
+                .short('p')
+                .value_parser(parse_vector3)
+                .help("Initial camera position 'x,y,z'"),
+        )
+        .arg(
+            Arg::new("camera-target")
+                .long("camera-target")
+                .short('t')
+                .value_parser(parse_vector3)
+                .help("Initial camera target 'x,y,z'"),
+        )
+        .arg(
+            Arg::new("light-ambient")
+                .long("light-ambient")
+                .value_parser(value_parser!(f32))
+                .help("Ambient lighting strength (0.0 - 1.0)"),
+        )
+        .arg(
+            Arg::new("light-diffuse")
+                .long("light-diffuse")
+                .value_parser(value_parser!(f32))
+                .help("Diffuse lighting strength (0.0 - 1.0)"),
+        )
+        .arg(
+            Arg::new("light-specular")
+                .long("light-specular")
+                .value_parser(value_parser!(f32))
+                .help("Specular lighting strength (0.0 - 1.0)"),
+        )
+        .arg(
+            Arg::new("light-shininess")
+                .long("light-shininess")
+                .value_parser(value_parser!(u32))
+                .help("Specular shininess exponent"),
+        )
+        .arg(
+            Arg::new("fov")
+                .long("fov")
+                .value_parser(value_parser!(f32))
+                .help("Field Of View in degrees"),
+        )
+        .arg(
+            Arg::new("near")
+                .long("near")
+                .value_parser(value_parser!(f32))
+                .help("Near frustum face"),
+        )
+        .arg(
+            Arg::new("far")
+                .long("far")
+                .value_parser(value_parser!(f32))
+                .help("Far frustum face"),
+        )
+        .arg(
+            Arg::new("max-fps")
+                .long("max-fps")
+                .short('f')
+                .value_parser(value_parser!(u32))
+                .help("Maximum FPS"),
+        )
+        .arg(
+            Arg::new("show-fps")
+                .long("show-fps")
+                .help("Show FPS")
+                .action(ArgAction::SetTrue),
         )
         .get_matches();
-    let input_path = matches.get_one::<String>("file").unwrap();
-    let mut app = App::new(input_path);
-    app.run().unwrap();
+
+    let terminal_size = terminal::size().unwrap_or((80, 24));
+    let config = Config::default()
+        .with_resolution(
+            terminal_size.0 as usize * 2,
+            (terminal_size.1 - 3) as usize * 4,
+        )
+        .with_clap_matches(&matches);
+
+    let input_path = matches.get_one::<String>("model").unwrap();
+    let mut app = App::new(input_path, config);
+    app.run()
+}
+
+fn parse_vector3(s: &str) -> Result<Vector3, String> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 3 {
+        return Err("Expected format: 'x,y,z'".to_string());
+    }
+
+    let x = parts[0]
+        .parse::<f32>()
+        .map_err(|e| format!("Invalid X coordinate: {}", e))?;
+    let y = parts[1]
+        .parse::<f32>()
+        .map_err(|e| format!("Invalid Y coordinate: {}", e))?;
+    let z = parts[2]
+        .parse::<f32>()
+        .map_err(|e| format!("Invalid Z coordinate: {}", e))?;
+
+    Ok(Vector3::new(x, y, z))
 }
