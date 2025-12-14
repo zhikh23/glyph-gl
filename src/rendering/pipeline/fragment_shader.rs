@@ -25,7 +25,7 @@ impl FragmentShader {
                 // (0, 0. 1) - направление взгляда камеры в view space.
                 .dot(Direction3::new_unchecked(0.0, 0.0, 1.0))
                 .max(0.0);
-            spec.powf(self.shininess) * self.specular
+            spec.powi(self.shininess as i32) * self.specular
         } else {
             0.0
         };
