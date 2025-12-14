@@ -49,6 +49,9 @@ impl TriangleRasterizer {
         frame_buffer: &mut FrameBuffer,
         fragment_shader: &FragmentShader,
     ) {
+        if Self::is_triangle_in_frustum(&processed) || Self::is_backface(&processed) {
+            return;
+        }
         let screen_triangle = processed.clone().map(|pv| self.ndc_to_screen(pv.ndc_pos));
         let bounds = Self::triangle_bounds(&screen_triangle).intersect(&self.screen_bounds());
         for y in bounds.min_y..=bounds.max_y {
@@ -148,5 +151,33 @@ impl TriangleRasterizer {
             + barycentric.z * (*v2.view_nor) * v2.inv_w)
             .normalize()
             .unwrap_or(UnitVector3::new_unchecked(0.0, 0.0, 1.0))
+    }
+
+    fn is_triangle_in_frustum(vertices: &[ProcessedVertex; 3]) -> bool {
+        let min_x = vertices
+            .iter()
+            .fold(f32::INFINITY, |acc, v| acc.min(v.ndc_pos.x));
+        let max_x = vertices
+            .iter()
+            .fold(f32::NEG_INFINITY, |acc, v| acc.max(v.ndc_pos.x));
+        let min_y = vertices
+            .iter()
+            .fold(f32::INFINITY, |acc, v| acc.min(v.ndc_pos.y));
+        let max_y = vertices
+            .iter()
+            .fold(f32::NEG_INFINITY, |acc, v| acc.max(v.ndc_pos.y));
+
+        min_x > 1.0 || max_x < -1.0 || min_y > 1.0 || max_y < -1.0
+    }
+
+    fn is_backface(vertices: &[ProcessedVertex; 3]) -> bool {
+        let (v0, v1, v2) = (&vertices[0], &vertices[1], &vertices[2]);
+
+        let edge1 = v1.ndc_pos - v0.ndc_pos;
+        let edge2 = v2.ndc_pos - v0.ndc_pos;
+
+        let cross = edge1.y * edge2.x - edge1.x * edge2.y;
+
+        cross <= 0.0
     }
 }

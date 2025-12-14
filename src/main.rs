@@ -14,6 +14,7 @@ use crossterm::terminal::LeaveAlternateScreen;
 use crossterm::{ExecutableCommand, QueueableCommand, event, terminal};
 use std::error::Error;
 use std::io::{Write, stdout};
+use std::ops::Sub;
 use std::path::Path;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -25,7 +26,7 @@ use crate::math::vectors::Vector3;
 use crate::output::brailler_formatter::BrailleColorFormatter;
 use crate::rendering::renderer::Renderer;
 
-const ROTATE_SPEED_RADS: f32 = 40.0;
+const ROTATE_SPEED_RADS: f32 = 60.0;
 
 pub struct App {
     renderer: Renderer,
@@ -39,13 +40,13 @@ pub struct App {
 impl App {
     pub fn new<P: AsRef<Path>>(obj_file: P) -> Self {
         let mut camera = LookAtCamera::new(
-            Vector3::new(0.0, 1.5, 100.0),
+            Vector3::new(0.0, 1.5, 10.0),
             Vector3::new(0.0, 0.0, 0.0),
-            (180.0 / 38.0 * 40.0, 80.0),
-            //(7.0, 4.0),
+            //(180.0 / 38.0 * 40.0, 80.0),
+            (180.0 / 38.0 * 4.0, 8.0),
         );
         let output = Box::new(BrailleColorFormatter);
-        let renderer = Renderer::new((180 * 2, 38 * 4), output);
+        let renderer = Renderer::new((180 * 2 * 2, 38 * 4 * 2), output);
         let raw_mesh = ObjLoader::load_from_file(obj_file)
             .unwrap_or_else(|e| panic!("failed to load model: {:?}", e));
         let mesh = Mesh::with_smooth_normals(raw_mesh)
@@ -79,12 +80,25 @@ impl App {
         let mut stdout = stdout();
         let frame_duration = Duration::from_millis(16); // ~60 FPS
 
-        let mut frame_start = Instant::now();
+        let mut frame_start = Instant::now().sub(frame_duration);
+
+        let mut i = 0;
+        let mut fps: f32 = 60.0;
+        let mut acc: f32 = 0.0;
+
         while self.is_running {
             let dt = frame_start.elapsed().as_secs_f32();
             self.handle_input(dt)?;
-
+            eprintln!("FPS={:.1}", fps);
+            acc += dt;
+            i += 1;
+            if i >= 10 {
+                i = 0;
+                fps = 10.0 / acc;
+                acc = 0.0;
+            }
             frame_start = Instant::now();
+
             self.render(&mut stdout)?;
 
             let elapsed = frame_start.elapsed();

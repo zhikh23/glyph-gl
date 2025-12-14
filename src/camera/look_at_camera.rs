@@ -53,8 +53,7 @@ impl LookAtCamera {
             .normalize()
             .unwrap_or(UnitVector3::new_unchecked(0.0, 0.0, 1.0));
         let current_distance = (self.target - self.eye).length();
-        let new_distance = (current_distance + delta).max(0.1);
-
+        let new_distance = (current_distance + delta).max(self.near);
         self.eye = self.target - (*direction) * new_distance;
     }
 
@@ -82,16 +81,6 @@ impl Camera for LookAtCamera {
 
     /// Возвращает перспективную матрицу проекции
     fn proj(&self) -> Matrix4 {
-        /*
-        Matrix4::orthographic(
-            -self.size.0 / 2.0,
-            self.size.0 / 2.0,
-            -self.size.1 / 2.0,
-            self.size.1 / 2.0,
-            self.near,
-            self.far,
-        )
-         */
         Matrix4::perspective(
             50.0_f32.to_radians(),
             self.size.0 / self.size.1,
