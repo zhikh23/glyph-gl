@@ -1,12 +1,13 @@
 use crate::math::vectors::Vector3;
 
-#[derive(clap::ValueEnum, Clone)]
+#[derive(clap::ValueEnum, Clone, Debug)]
 #[clap(rename_all = "kebab-case")]
 pub enum ShadingMode {
     Flat,
     Smooth,
 }
 
+#[derive(Debug)]
 pub struct Config {
     pub static_mode: bool,
 

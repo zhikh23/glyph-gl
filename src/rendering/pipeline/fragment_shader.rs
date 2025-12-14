@@ -4,11 +4,11 @@ pub struct FragmentShader {
     ambient: f32,
     diffuse: f32,
     specular: f32,
-    shininess: f32,
+    shininess: i32,
 }
 
 impl FragmentShader {
-    pub fn new(ambient: f32, diffuse: f32, specular: f32, shininess: f32) -> FragmentShader {
+    pub fn new(ambient: f32, diffuse: f32, specular: f32, shininess: i32) -> FragmentShader {
         FragmentShader {
             ambient,
             diffuse,
@@ -19,16 +19,12 @@ impl FragmentShader {
 
     pub fn process(&self, normal: Normal3, light: Direction3) -> f32 {
         let diffuse = normal.dot(light).max(0.0) * self.diffuse;
-        let specular = if diffuse > 0.0 {
-            let reflect_dir = reflect(-light, normal);
-            let spec = reflect_dir
-                // (0, 0. 1) - направление взгляда камеры в view space.
-                .dot(Direction3::new_unchecked(0.0, 0.0, 1.0))
-                .max(0.0);
-            spec.powi(self.shininess as i32) * self.specular
-        } else {
-            0.0
-        };
+        let reflect_dir = reflect(-light, normal);
+        let spec = reflect_dir
+            // (0, 0. 1) - направление взгляда камеры в view space.
+            .dot(Direction3::new_unchecked(0.0, 0.0, 1.0))
+            .max(0.0);
+        let specular = spec.powi(self.shininess) * self.specular;
         (self.ambient + diffuse + specular).clamp(0.0, 1.0)
     }
 }

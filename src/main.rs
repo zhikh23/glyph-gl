@@ -16,8 +16,24 @@ use crate::config::{Config, ShadingMode};
 use crate::math::vectors::Vector3;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let matches = Command::new("GlyphGL")
-        .version("1.0.0")
+    let matches = build_cli().get_matches();
+
+    let terminal_size = terminal::size().unwrap_or((80, 24));
+    let config = Config::default()
+        .with_resolution(
+            terminal_size.0 as usize * 2,
+            (terminal_size.1 - 2) as usize * 4,
+        )
+        .with_clap_matches(&matches);
+
+    let input_path = matches.get_one::<String>("model").unwrap();
+    let mut app = App::new(input_path, config);
+    app.run()
+}
+
+fn build_cli() -> Command {
+    Command::new("GlyphGL")
+        .version("1.0.1")
         .author("Kirill Zhikharev")
         .about("Subpixel terminal 3D .obj render")
         .arg(
@@ -35,14 +51,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         )
         .arg(
             Arg::new("frame-width")
-                .short('w')
+                .short('W')
                 .long("width")
                 .value_parser(value_parser!(usize))
                 .help("Width of output image"),
         )
         .arg(
             Arg::new("frame-height")
-                .short('h')
+                .short('H')
                 .long("height")
                 .value_parser(value_parser!(usize))
                 .help("Height of output image"),
@@ -72,8 +88,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .help("Camera rotation speed"),
         )
         .arg(
-            Arg::new("camera-zooming-speed")
-                .long("camera-zooming-speed")
+            Arg::new("camera-zoom-speed")
+                .long("camera-zoom-speed")
                 .value_parser(value_parser!(f32))
                 .help("Camera zooming speed"),
         )
@@ -146,19 +162,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .help("Show FPS")
                 .action(ArgAction::SetTrue),
         )
-        .get_matches();
-
-    let terminal_size = terminal::size().unwrap_or((80, 24));
-    let config = Config::default()
-        .with_resolution(
-            terminal_size.0 as usize * 2,
-            (terminal_size.1 - 3) as usize * 4,
-        )
-        .with_clap_matches(&matches);
-
-    let input_path = matches.get_one::<String>("model").unwrap();
-    let mut app = App::new(input_path, config);
-    app.run()
 }
 
 fn parse_vector3(s: &str) -> Result<Vector3, String> {

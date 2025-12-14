@@ -28,7 +28,7 @@ impl Renderer {
                 config.light_ambient,
                 config.light_diffuse,
                 config.light_specular,
-                config.light_specular,
+                config.light_shininess as i32,
             ),
         }
     }
