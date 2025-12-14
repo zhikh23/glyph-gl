@@ -26,7 +26,8 @@ use crate::math::vectors::Vector3;
 use crate::output::brailler_formatter::BrailleColorFormatter;
 use crate::rendering::renderer::Renderer;
 
-const ROTATE_SPEED_RADS: f32 = 60.0;
+const ROTATE_SPEED_RADS: f32 = 90.0;
+const MOVEMENT_SPEED: f32 = 2.0;
 
 pub struct App {
     renderer: Renderer,
@@ -39,20 +40,26 @@ pub struct App {
 
 impl App {
     pub fn new<P: AsRef<Path>>(obj_file: P) -> Self {
-        let mut camera = LookAtCamera::new(
-            Vector3::new(0.0, 1.5, 10.0),
-            Vector3::new(0.0, 0.0, 0.0),
-            //(180.0 / 38.0 * 40.0, 80.0),
-            (180.0 / 38.0 * 4.0, 8.0),
-        );
+        let tmp = terminal::size().unwrap_or((80, 24));
+        let mut term_size = (tmp.0 as usize, tmp.1 as usize);
+        term_size.1 -= 3;
+        let aspect = 0.5 * term_size.0 as f32 / term_size.1 as f32;
+
         let output = Box::new(BrailleColorFormatter);
-        let renderer = Renderer::new((180 * 2 * 2, 38 * 4 * 2), output);
+        let renderer = Renderer::new(term_size, output);
+
         let raw_mesh = ObjLoader::load_from_file(obj_file)
             .unwrap_or_else(|e| panic!("failed to load model: {:?}", e));
-        let mesh = Mesh::with_smooth_normals(raw_mesh)
+        let mut mesh = Mesh::with_smooth_normals(raw_mesh)
             .unwrap_or_else(|e| panic!("failed to create mesh: {:?}", e));
+        mesh.fit(2.0);
 
-        camera.look_at(mesh.center());
+        let mesh_center = mesh.center();
+        let camera = LookAtCamera::new(
+            Vector3::new(0.0, mesh_center.y, 2.0),
+            mesh_center,
+            (aspect * 2.0, 2.0),
+        );
 
         App {
             renderer,
@@ -69,7 +76,6 @@ impl App {
 
         self.main_loop()?;
 
-        // Восстановление терминала
         stdout().execute(LeaveAlternateScreen)?;
         terminal::disable_raw_mode()?;
 
@@ -188,11 +194,11 @@ impl App {
     }
 
     fn zoom_in(&mut self, dt: f32) {
-        self.camera.zoom(-30.0 * dt);
+        self.camera.zoom(-MOVEMENT_SPEED * dt);
     }
 
     fn zoom_out(&mut self, dt: f32) {
-        self.camera.zoom(30.0 * dt);
+        self.camera.zoom(MOVEMENT_SPEED * dt);
     }
 }
 

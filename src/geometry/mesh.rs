@@ -1,3 +1,4 @@
+use crate::geometry::aabb::Aabb;
 use crate::math::vectors::{Normal3, UnitVector3, Vector3};
 
 pub struct RawMesh {
@@ -157,6 +158,43 @@ impl Mesh {
             .iter()
             .fold(Vector3::zero(), |acc, v| acc + *v);
         acc * (1.0 / self.vertices.len() as f32)
+    }
+
+    pub fn scale(&mut self, scale: f32) {
+        self.vertices.iter_mut().for_each(|v| *v = *v * scale);
+    }
+
+    pub fn fit(&mut self, max_extent: f32) {
+        let aabb = self.aabb();
+        self.scale(max_extent / aabb.max_extent());
+    }
+
+    pub fn aabb(&self) -> Aabb {
+        let left = self
+            .vertices
+            .iter()
+            .fold(f32::INFINITY, |acc, v| acc.min(v.x));
+        let right = self
+            .vertices
+            .iter()
+            .fold(f32::NEG_INFINITY, |acc, v| acc.max(v.x));
+        let bottom = self
+            .vertices
+            .iter()
+            .fold(f32::INFINITY, |acc, v| acc.min(v.y));
+        let top = self
+            .vertices
+            .iter()
+            .fold(f32::NEG_INFINITY, |acc, v| acc.max(v.y));
+        let far = self
+            .vertices
+            .iter()
+            .fold(f32::INFINITY, |acc, v| acc.min(v.z));
+        let near = self
+            .vertices
+            .iter()
+            .fold(f32::NEG_INFINITY, |acc, v| acc.max(v.z));
+        Aabb::new(left, right, bottom, top, far, near)
     }
 }
 

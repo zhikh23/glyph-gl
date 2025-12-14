@@ -19,6 +19,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new((width, height): (usize, usize), output: Box<dyn OutputFormatter>) -> Self {
+        let (width, height) = (width * 2, height * 4);
         Self {
             frame_buffer: FrameBuffer::new(width, height),
             z_buffer: ZBuffer::new(width, height),
