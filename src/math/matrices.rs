@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use crate::math::vectors::{Normal3, Vector3};
+use crate::math::vectors::{Normal3, Vector3, Vector4};
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Matrix3 {
@@ -153,6 +153,28 @@ impl Transformer<Normal3> for Matrix4 {
         let y = inv[1][0] * n.x + inv[1][1] * n.y + inv[1][2] * n.z;
         let z = inv[2][0] * n.x + inv[2][1] * n.y + inv[2][2] * n.z;
         Vector3::new(x, y, z).normalize().unwrap() // Афинные преобразования сохраняет вектор
+    }
+}
+
+impl Transformer<Vector4> for Matrix4 {
+    fn transform(&self, v: Vector4) -> Vector4 {
+        let x = self.data[0][0] * v.x
+            + self.data[0][1] * v.y
+            + self.data[0][2] * v.z
+            + self.data[0][3] * v.w;
+        let y = self.data[1][0] * v.x
+            + self.data[1][1] * v.y
+            + self.data[1][2] * v.z
+            + self.data[1][3] * v.w;
+        let z = self.data[2][0] * v.x
+            + self.data[2][1] * v.y
+            + self.data[2][2] * v.z
+            + self.data[2][3] * v.w;
+        let w = self.data[3][0] * v.x
+            + self.data[3][1] * v.y
+            + self.data[3][2] * v.z
+            + self.data[3][3] * v.w;
+        Vector4::new(x, y, z, w)
     }
 }
 

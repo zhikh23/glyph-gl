@@ -30,6 +30,23 @@ impl Matrix4 {
             [0.0, 0.0, 0.0, 1.0],
         ])
     }
+
+    pub fn perspective(fov: f32, aspect: f32, near: f32, far: f32) -> Self {
+        let f = 1.0 / (fov / 2.0).tan();
+        let range_inv = 1.0 / (near - far);
+
+        Self::new([
+            [f / aspect, 0.0, 0.0, 0.0],
+            [0.0, f, 0.0, 0.0],
+            [
+                0.0,
+                0.0,
+                (far + near) * range_inv,
+                2.0 * far * near * range_inv,
+            ],
+            [0.0, 0.0, -1.0, 0.0],
+        ])
+    }
 }
 
 #[cfg(test)]

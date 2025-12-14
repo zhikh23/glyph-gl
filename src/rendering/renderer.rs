@@ -24,7 +24,7 @@ impl Renderer {
             z_buffer: ZBuffer::new(width, height),
             rasterizer: TriangleRasterizer::new(width, height),
             vertex_shader: VertexShader::new(),
-            fragment_shader: FragmentShader::new(0.0, 0.95),
+            fragment_shader: FragmentShader::new(0.05, 0.7),
             output,
         }
     }

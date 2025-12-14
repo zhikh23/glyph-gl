@@ -1,4 +1,4 @@
-use std::ops::{Deref, Mul, Neg};
+use std::ops::{Deref, Neg};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector3 {
@@ -44,6 +44,14 @@ impl Vector3 {
             // Невозможно нормализовать нулевой вектор
             None
         }
+    }
+
+    pub fn truncate(self) -> Vector2 {
+        Vector2::new(self.x, self.y)
+    }
+
+    pub fn extend(self, w: f32) -> Vector4 {
+        Vector4::new(self.x, self.y, self.z, w)
     }
 }
 
@@ -91,6 +99,18 @@ impl std::ops::Mul<f32> for Vector3 {
     }
 }
 
+impl std::ops::Div<f32> for Vector3 {
+    type Output = Self;
+
+    fn div(self, scalar: f32) -> Self {
+        Self {
+            x: self.x / scalar,
+            y: self.y / scalar,
+            z: self.z / scalar,
+        }
+    }
+}
+
 impl std::ops::Mul<Vector3> for f32 {
     type Output = Vector3;
 
@@ -128,7 +148,7 @@ impl Neg for UnitVector3 {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Self(self.0.mul(-1.0))
+        Self(self.0 * -1.0)
     }
 }
 
@@ -159,6 +179,24 @@ impl std::ops::Sub for Vector2 {
             x: self.x - other.x,
             y: self.y - other.y,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Vector4 {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub w: f32,
+}
+
+impl Vector4 {
+    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Vector4 {
+        Vector4 { x, y, z, w }
+    }
+
+    pub fn truncate(self) -> Vector3 {
+        Vector3::new(self.x, self.y, self.z)
     }
 }
 

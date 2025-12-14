@@ -39,13 +39,13 @@ pub struct App {
 impl App {
     pub fn new<P: AsRef<Path>>(obj_file: P) -> Self {
         let mut camera = LookAtCamera::new(
-            Vector3::new(0.0, 1.5, -500.0),
+            Vector3::new(0.0, 1.5, 100.0),
             Vector3::new(0.0, 0.0, 0.0),
-            (7.0 * 20.0, 4.0 * 20.0),
+            (180.0 / 38.0 * 40.0, 80.0),
             //(7.0, 4.0),
         );
         let output = Box::new(BrailleColorFormatter);
-        let renderer = Renderer::new((230 * 2, 50 * 4), output);
+        let renderer = Renderer::new((180 * 2, 38 * 4), output);
         let raw_mesh = ObjLoader::load_from_file(obj_file)
             .unwrap_or_else(|e| panic!("failed to load model: {:?}", e));
         let mesh = Mesh::with_smooth_normals(raw_mesh)
@@ -119,6 +119,13 @@ impl App {
                         self.look_right(dt);
                     }
 
+                    KeyCode::Char('r') | KeyCode::Char('R') => {
+                        self.zoom_in(dt);
+                    }
+                    KeyCode::Char('f') | KeyCode::Char('F') => {
+                        self.zoom_out(dt);
+                    }
+
                     // Выход
                     KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Esc => {
                         self.is_running = false;
@@ -164,6 +171,14 @@ impl App {
     fn look_right(&mut self, dt: f32) {
         self.camera
             .orbit_around_target(-self.rotate_speed * dt, 0.0);
+    }
+
+    fn zoom_in(&mut self, dt: f32) {
+        self.camera.zoom(-30.0 * dt);
+    }
+
+    fn zoom_out(&mut self, dt: f32) {
+        self.camera.zoom(30.0 * dt);
     }
 }
 

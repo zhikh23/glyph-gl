@@ -11,6 +11,26 @@ struct ScreenBounds {
     max_y: usize,
 }
 
+impl ScreenBounds {
+    pub fn new(min_x: usize, max_x: usize, min_y: usize, max_y: usize) -> ScreenBounds {
+        Self {
+            min_x,
+            min_y,
+            max_x,
+            max_y,
+        }
+    }
+
+    pub fn intersect(&self, other: &Self) -> Self {
+        Self {
+            min_x: self.min_x.max(other.min_x),
+            max_x: self.max_x.min(other.max_x),
+            min_y: self.min_y.max(other.min_y),
+            max_y: self.max_y.min(other.max_y),
+        }
+    }
+}
+
 pub struct TriangleRasterizer {
     width: usize,
     height: usize,
@@ -30,29 +50,14 @@ impl TriangleRasterizer {
         fragment_shader: &FragmentShader,
     ) {
         let screen_triangle = processed.clone().map(|pv| self.ndc_to_screen(pv.ndc_pos));
-        let bounds = Self::triangle_bounds(&screen_triangle);
+        let bounds = Self::triangle_bounds(&screen_triangle).intersect(&self.screen_bounds());
         for y in bounds.min_y..=bounds.max_y {
             for x in bounds.min_x..=bounds.max_x {
                 let point = Vector2::new(x as f32, y as f32);
-                if let Some(barycentric) = Self::barycentric(
-                    point,
-                    screen_triangle[0],
-                    screen_triangle[1],
-                    screen_triangle[2],
-                ) {
-                    let depth = Self::interpolate_depth(
-                        barycentric,
-                        &processed[0],
-                        &processed[1],
-                        &processed[2],
-                    );
-                    let normal = Self::interpolate_normal(
-                        barycentric,
-                        &processed[0],
-                        &processed[1],
-                        &processed[2],
-                    );
-                    if depth.abs() < 1.0 && z_buffer.test_and_set(x, y, depth) {
+                if let Some(barycentric) = Self::barycentric(point, screen_triangle) {
+                    let depth = Self::interpolate_depth(barycentric, &processed);
+                    if z_buffer.test_and_set(x, y, depth) {
+                        let normal = Self::interpolate_normal(barycentric, &processed);
                         let intensity = fragment_shader.process(normal, light);
                         frame_buffer.set(x, y, intensity);
                     }
@@ -65,6 +70,10 @@ impl TriangleRasterizer {
         let x = (ndc.x + 1.0) * 0.5 * (self.width as f32 - 1.0);
         let y = (1.0 - ndc.y) * 0.5 * (self.height as f32 - 1.0);
         Vector2::new(x, y)
+    }
+
+    fn screen_bounds(&self) -> ScreenBounds {
+        ScreenBounds::new(0, self.width, 0, self.height)
     }
 
     fn triangle_bounds(triangle: &[Vector2; 3]) -> ScreenBounds {
@@ -92,9 +101,10 @@ impl TriangleRasterizer {
         bounds
     }
 
-    fn barycentric(point: Vector2, a: Vector2, b: Vector2, c: Vector2) -> Option<Vector3> {
+    fn barycentric(point: Vector2, screen_triangle: [Vector2; 3]) -> Option<Vector3> {
         // Вычисление барицентрических координат для вектора point с заданным базисом (a, b, c)
         // сводится к решению СЛАУ. Естественно использование метода Крамера.
+        let (a, b, c) = (screen_triangle[0], screen_triangle[1], screen_triangle[2]);
 
         let v0 = b - a;
         let v1 = c - a;
@@ -124,24 +134,18 @@ impl TriangleRasterizer {
         }
     }
 
-    fn interpolate_depth(
-        barycentric: Vector3,
-        v0: &ProcessedVertex,
-        v1: &ProcessedVertex,
-        v2: &ProcessedVertex,
-    ) -> f32 {
-        barycentric.x * v0.ndc_pos.z + barycentric.y * v1.ndc_pos.z + barycentric.z * v2.ndc_pos.z
+    fn interpolate_depth(barycentric: Vector3, vertices: &[ProcessedVertex; 3]) -> f32 {
+        let (v0, v1, v2) = (&vertices[0], &vertices[1], &vertices[2]);
+        barycentric.x * v0.view_pos.z
+            + barycentric.y * v1.view_pos.z
+            + barycentric.z * v2.view_pos.z
     }
 
-    fn interpolate_normal(
-        barycentric: Vector3,
-        v0: &ProcessedVertex,
-        v1: &ProcessedVertex,
-        v2: &ProcessedVertex,
-    ) -> Normal3 {
-        (barycentric.x * (*v0.view_nor)
-            + barycentric.y * (*v1.view_nor)
-            + barycentric.z * (*v2.view_nor))
+    fn interpolate_normal(barycentric: Vector3, vertices: &[ProcessedVertex; 3]) -> Normal3 {
+        let (v0, v1, v2) = (&vertices[0], &vertices[1], &vertices[2]);
+        (barycentric.x * (*v0.view_nor) * v0.inv_w
+            + barycentric.y * (*v1.view_nor) * v1.inv_w
+            + barycentric.z * (*v2.view_nor) * v2.inv_w)
             .normalize()
             .unwrap_or(UnitVector3::new_unchecked(0.0, 0.0, 1.0))
     }

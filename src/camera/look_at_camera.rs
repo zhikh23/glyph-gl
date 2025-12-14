@@ -5,7 +5,7 @@ use crate::math::vectors::{UnitVector3, Vector3};
 pub struct LookAtCamera {
     pub eye: Vector3,
     pub target: Vector3,
-    pub ortho_size: (f32, f32), // ширина и высота orthographic frustum
+    pub size: (f32, f32),
     pub near: f32,
     pub far: f32,
 }
@@ -16,9 +16,9 @@ impl LookAtCamera {
         Self {
             eye,
             target,
-            ortho_size,
+            size: ortho_size,
             near: 0.1,
-            far: 2000.0,
+            far: 300.0,
         }
     }
 
@@ -80,13 +80,21 @@ impl Camera for LookAtCamera {
         Matrix4::view_matrix(forward, up, right, self.eye)
     }
 
-    /// Возвращает orthographic projection matrix
+    /// Возвращает перспективную матрицу проекции
     fn proj(&self) -> Matrix4 {
+        /*
         Matrix4::orthographic(
-            -self.ortho_size.0 / 2.0,
-            self.ortho_size.0 / 2.0,
-            -self.ortho_size.1 / 2.0,
-            self.ortho_size.1 / 2.0,
+            -self.size.0 / 2.0,
+            self.size.0 / 2.0,
+            -self.size.1 / 2.0,
+            self.size.1 / 2.0,
+            self.near,
+            self.far,
+        )
+         */
+        Matrix4::perspective(
+            50.0_f32.to_radians(),
+            self.size.0 / self.size.1,
             self.near,
             self.far,
         )
