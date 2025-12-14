@@ -15,11 +15,10 @@ pub struct Renderer {
     rasterizer: TriangleRasterizer,
     vertex_shader: VertexShader,
     fragment_shader: FragmentShader,
-    output: Box<dyn OutputFormatter>,
 }
 
 impl Renderer {
-    pub fn new(config: &Config, output: Box<dyn OutputFormatter>) -> Self {
+    pub fn new(config: &Config) -> Self {
         Self {
             frame_buffer: FrameBuffer::new(config.frame_width, config.frame_height),
             z_buffer: ZBuffer::new(config.frame_width, config.frame_height),
@@ -31,7 +30,6 @@ impl Renderer {
                 config.light_specular,
                 config.light_specular,
             ),
-            output,
         }
     }
 
@@ -61,7 +59,7 @@ impl Renderer {
         }
     }
 
-    pub fn frame(&self) -> String {
-        self.output.frame_to_string(&self.frame_buffer)
+    pub fn frame(&self, output: &impl OutputFormatter) -> String {
+        output.frame_to_string(&self.frame_buffer)
     }
 }

@@ -24,14 +24,14 @@ pub struct App {
     renderer: Renderer,
     camera: LookAtCamera,
     mesh: Mesh,
+    output: BrailleColorFormatter,
 
     is_running: bool,
 }
 
 impl App {
     pub fn new<P: AsRef<Path>>(obj_file: P, config: Config) -> Self {
-        let output = Box::new(BrailleColorFormatter);
-        let renderer = Renderer::new(&config, output);
+        let renderer = Renderer::new(&config);
 
         let raw_mesh = ObjLoader::load_from_file(obj_file)
             .unwrap_or_else(|e| panic!("failed to load model: {:?}", e));
@@ -60,6 +60,7 @@ impl App {
             renderer,
             camera,
             mesh,
+            output: BrailleColorFormatter,
             is_running: true,
         }
     }
@@ -156,7 +157,7 @@ impl App {
 
     fn render(&mut self, stdout: &mut std::io::Stdout) -> Result<(), Box<dyn Error>> {
         self.renderer.render(&self.mesh, &self.camera);
-        let frame = self.renderer.frame();
+        let frame = self.renderer.frame(&self.output);
         stdout.queue(MoveTo(0, 0))?;
         stdout.queue(Print(frame))?;
         stdout.flush()?;
