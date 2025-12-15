@@ -21,8 +21,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let terminal_size = terminal::size().unwrap_or((80, 24));
     let config = Config::default()
         .with_resolution(
-            terminal_size.0 as usize * 2,
-            (terminal_size.1 - 2) as usize * 4,
+            2 * terminal_size.0 as usize,
+            4 * terminal_size.1 as usize - 2,
         )
         .with_clap_matches(&matches);
 
@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn build_cli() -> Command {
     Command::new("GlyphGL")
-        .version("1.0.1")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Kirill Zhikharev")
         .about("Subpixel terminal 3D .obj render")
         .arg(

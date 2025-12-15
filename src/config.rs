@@ -69,10 +69,10 @@ impl Config {
             self.static_mode = true;
         }
         if let Some(&width) = matches.get_one::<usize>("frame-width") {
-            self.frame_width = width;
+            self.frame_width = width * 2;
         }
         if let Some(&height) = matches.get_one::<usize>("frame-height") {
-            self.frame_height = height;
+            self.frame_height = height * 4;
         }
         if matches.get_flag("no-culling") {
             self.backface_culling = false;

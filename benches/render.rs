@@ -8,7 +8,7 @@ use glyph_gl::rendering::renderer::Renderer;
 fn render_teapot_benchmark(c: &mut Criterion) {
     let config = Config::default().with_resolution(1024, 1024);
 
-    let raw_mesh = ObjLoader::load_from_file("assets/teapot.obj")
+    let raw_mesh = ObjLoader::load_from_file("examples/teapot.obj")
         .unwrap_or_else(|e| panic!("failed to load model: {:?}", e));
     let mut mesh = match config.shading_mode {
         ShadingMode::Flat => Mesh::with_flat_normals(raw_mesh)
