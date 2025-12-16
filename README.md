@@ -54,7 +54,7 @@ glyph-gl -s model.obj
 
 ### Чайник
 
-Модель: [examples/car.obj](examples/car.obj) со стандартным для экрана автора разрешением терминала 190x46.
+Модель: [examples/teapot.obj](examples/teapot.obj) со стандартным для экрана автора разрешением терминала 190x46.
 ```bash
 glyph-gl -W 190 -H 46 -p 0.6,0.4,1.2 -t 0,-0.05,0 -s examples/teapot.obj
 ```
