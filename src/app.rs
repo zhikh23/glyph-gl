@@ -25,6 +25,7 @@ pub struct App {
     camera: LookAtCamera,
     mesh: Mesh,
     output: BrailleColorFormatter,
+    fps_counter: FpsCounter,
 
     is_running: bool,
 }
@@ -61,6 +62,7 @@ impl App {
             camera,
             mesh,
             output: BrailleColorFormatter,
+            fps_counter: FpsCounter::new(FPS_MAX_SAMPLES),
             is_running: true,
         }
     }
@@ -95,18 +97,14 @@ impl App {
         let frame_duration = Duration::from_secs_f32(1.0 / self.config.max_fps as f32);
 
         let mut frame_start = Instant::now() - frame_duration;
-        let mut fps_cnt = FpsCounter::new(FPS_MAX_SAMPLES);
 
         while self.is_running {
             let dt = frame_start.elapsed().as_secs_f32();
+            self.fps_counter.tick(dt);
             self.handle_input(dt)?;
-            if self.config.show_fps {
-                println!("FPS={:.1}", fps_cnt.tick(dt));
-            }
+
             frame_start = Instant::now();
-
             self.render(&mut stdout)?;
-
             let elapsed = frame_start.elapsed();
             if elapsed < frame_duration {
                 thread::sleep(frame_duration - elapsed);
@@ -160,6 +158,9 @@ impl App {
         let frame = self.renderer.frame(&self.output);
         stdout.queue(MoveTo(0, 0))?;
         stdout.queue(Print(frame))?;
+        if self.config.show_fps {
+            stdout.queue(Print(format!("\rFPS={:.1}", self.fps_counter.fps())))?;
+        }
         stdout.flush()?;
         Ok(())
     }
@@ -210,7 +211,7 @@ impl FpsCounter {
         }
     }
 
-    fn tick(&mut self, dt: f32) -> f32 {
+    fn tick(&mut self, dt: f32) {
         self.i += 1;
         self.duration += Duration::from_secs_f32(dt);
         if self.i >= self.samples {
@@ -218,6 +219,9 @@ impl FpsCounter {
             self.i = 0;
             self.duration = Duration::from_secs(0);
         }
+    }
+
+    fn fps(&self) -> f32 {
         self.fps
     }
 }

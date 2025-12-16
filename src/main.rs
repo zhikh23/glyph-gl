@@ -20,10 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let terminal_size = terminal::size().unwrap_or((80, 24));
     let config = Config::default()
-        .with_resolution(
-            2 * terminal_size.0 as usize,
-            4 * terminal_size.1 as usize - 2,
-        )
+        .with_resolution(2 * terminal_size.0 as usize, 4 * terminal_size.1 as usize)
         .with_clap_matches(&matches);
 
     let input_path = matches.get_one::<String>("model").unwrap();

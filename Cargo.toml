@@ -1,6 +1,6 @@
 [package]
 name = "glyph-gl"
-version = "1.0.3"
+version = "1.0.4"
 edition = "2024"
 authors = ["Kirill Zhikharev <zhikh.k@gmail.com>"]
 description = "CLI .obj file render"

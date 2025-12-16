@@ -25,7 +25,9 @@ impl OutputFormatter for BrailleColorFormatter {
                     result.push(' ');
                 }
             }
-            result.push_str("\r\n");
+            if by < braille_height - 1 {
+                result.push_str("\r\n");
+            }
         }
 
         result
